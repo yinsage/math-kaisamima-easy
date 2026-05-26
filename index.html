@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>凯撒密码 - 可视化工具</title>
+    <style>
+        :root {
+            --bg: #f5f0e8;
+            --card-bg: #fffef9;
+            --primary: #8b4513;
+            --gold: #b8860b;
+            --text: #3e2c1c;
+            --text-light: #6b5d4f;
+            --border: #d4c5b2;
+            --shadow: 0 4px 20px rgba(62, 44, 28, 0.12);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.3s ease;
+            --font-heading: 'Georgia', 'Noto Serif SC', 'STSong', 'SimSun', serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            background-image: radial-gradient(ellipse at 20% 10%, rgba(184,134,11,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 90%, rgba(139,69,19,0.05) 0%, transparent 60%);
+            min-height: 100vh;
+            font-family: var(--font-heading);
+            color: var(--text);
+            display: flex; justify-content: center;
+            padding: 24px 16px 60px;
+            line-height: 1.6;
+        }
+        .container { width: 100%; max-width: 860px; display: flex; flex-direction: column; gap: 20px; }
+        .header { text-align: center; }
+        .header-icon { font-size: 48px; filter: drop-shadow(0 3px 6px rgba(139,69,19,0.2)); animation: float 4s ease-in-out infinite; }
+        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        .header h1 { font-size: clamp(28px, 5vw, 40px); color: var(--primary); letter-spacing: 0.04em; }
+        .subtitle { font-size: 14px; color: var(--text-light); letter-spacing: 0.06em; font-style: italic; }
+        .nav-tabs { display: flex; flex-wrap: wrap; background: var(--card-bg); border-radius: 30px; padding: 5px; box-shadow: 0 2px 12px rgba(62,44,28,0.08); border: 1px solid var(--border); margin: 8px 0; }
+        .nav-btn { flex: 1; min-width: 100px; border: none; background: transparent; padding: 10px 12px; font-family: var(--font-heading); font-size: 15px; font-weight: 600; color: var(--text-light); cursor: pointer; border-radius: 25px; transition: all 0.25s; white-space: nowrap; }
+        .nav-btn.active { color: #fff; background: var(--primary); box-shadow: 0 2px 8px rgba(139,69,19,0.3); }
+        .nav-btn:hover:not(.active) { color: var(--primary); background: rgba(139,69,19,0.06); }
+        .nav-icon { margin-right: 4px; font-size: 16px; vertical-align: -1px; }
+        .page { display: none; animation: fadePage 0.25s ease; }
+        .page.active { display: block; }
+        @keyframes fadePage { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px 20px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .card::before { content: ''; position: absolute; top:0; left:0; right:0; height:4px; }
+        .disk-encrypt-border::before { background: linear-gradient(90deg, #8b4513, #b8860b, #8b4513); }
+        .disk-decrypt-border::before { background: linear-gradient(90deg, #6b3fa0, #8b5cb8, #6b3fa0); }
+        .coord-border::before { background: linear-gradient(90deg, #2c7a4b, #4caf50, #2c7a4b); }
+        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .card-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .disk-encrypt-border .card-icon { background: #fdf3e0; color: #8b4513; }
+        .disk-decrypt-border .card-icon { background: #f3edf8; color: #6b3fa0; }
+        .coord-border .card-icon { background: #e8f5e9; color: #2c7a4b; }
+        .card-title { font-size: 19px; font-weight: 700; letter-spacing: 0.03em; }
+        .form-group { margin-bottom: 14px; }
+        .form-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-light); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+        .label-icon { font-size: 15px; }
+        textarea { width: 100%; min-height: 70px; padding: 10px 12px; border: 2px solid #e5ddd3; border-radius: var(--radius-sm); font-family: 'SF Mono', 'Consolas', monospace; font-size: 15px; color: var(--text); background: #fdfcf8; resize: vertical; transition: all var(--transition); }
+        textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(184,134,11,0.08); background: #fffefb; }
+        .shift-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .shift-input-wrapper { display: flex; border: 2px solid #e5ddd3; border-radius: var(--radius-sm); overflow: hidden; background: #fdfcf8; }
+        .shift-btn { width: 34px; height: 38px; border: none; background: #f5f0e8; font-size: 18px; font-weight: 700; cursor: pointer; transition: 0.15s; display: flex; align-items: center; justify-content: center; }
+        .shift-btn:hover { background: #ebe3d6; color: var(--primary); }
+        .shift-number { width: 48px; height: 38px; border: none; text-align: center; font-size: 17px; font-weight: 700; color: var(--primary); background: transparent; font-family: var(--font-heading); -moz-appearance: textfield; }
+        .shift-number::-webkit-outer-spin-button, .shift-number::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .shift-slider { flex: 1; min-width: 70px; height: 6px; -webkit-appearance: none; background: linear-gradient(90deg, #e5ddd3, #d4c5b2); border-radius: 3px; outline: none; cursor: pointer; }
+        .shift-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--gold); border: 3px solid #fff; cursor: pointer; box-shadow: 0 2px 8px rgba(139,69,19,0.2); }
+        .shift-display { font-size: 13px; color: var(--text-light); font-weight: 600; min-width: 55px; text-align: center; }
+
+        .disk-area { display: flex; align-items: flex-start; gap: 20px; margin: 16px 0 10px; flex-wrap: wrap; }
+        .cipher-disk-wrapper { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .disk-controls { display: flex; gap: 6px; justify-content: center; }
+        .record-panel { flex: 1; min-width: 160px; background: #fdfcf8; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; display: flex; flex-direction: column; max-height: 280px; }
+        .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #e5ddd3; padding-bottom: 4px; }
+        .record-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); }
+        .record-actions { display: flex; gap: 4px; }
+        .record-actions button { background: none; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; cursor: pointer; padding: 2px 6px; color: #666; }
+        .record-actions button:hover { background: #eee; }
+        .record-content { flex: 1; overflow-y: auto; font-family: 'SF Mono', 'Consolas', monospace; font-size: 13px; color: var(--text); line-height: 1.6; word-break: break-all; }
+        .record-line { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-bottom: 1px dashed #f0ebe0; }
+        .record-line:last-child { border-bottom: none; }
+        .record-line span { flex: 1; }
+        .record-del { background: none; border: none; color: #c0392b; cursor: pointer; font-weight: bold; font-size: 14px; padding: 0 4px; }
+        .record-content::-webkit-scrollbar { width: 5px; }
+        .record-content::-webkit-scrollbar-thumb { background: #d4c5b2; border-radius: 3px; }
+
+        .cipher-disk { position: relative; border: 2px solid #222; border-radius: 50%; background: repeating-conic-gradient(#333 0deg 0.6deg, rgba(220,210,190,0.3) 0.6deg 13.846deg); box-shadow: 0 0 0 4px #f5f0e8; user-select: none; overflow: hidden; }
+        .cipher-disk::after { content: ''; position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: #222; border-radius: 50%; transform: translate(-50%, -50%); z-index: 10; border: 2px solid #f5f0e8; }
+        .disk-indicator { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 20px; color: #c0392b; z-index: 11; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); pointer-events: none; }
+        .inner-ring { position: absolute; top: 50%; left: 50%; border: 2px solid #222; border-radius: 50%; background: repeating-conic-gradient(#333 0deg 0.6deg, rgba(200,190,170,0.3) 0.6deg 13.846deg); transform: translate(-50%, -50%) rotate(0deg); transition: transform 0.4s ease; z-index: 2; }
+        .letter { position: absolute; display: flex; align-items: center; justify-content: center; font-weight: bold; text-shadow: 0 0 2px white; cursor: pointer; pointer-events: auto; transition: transform 0.1s, color 0.1s; }
+        .letter:hover { color: var(--gold); transform: scale(1.2); }
+        .letter:active { transform: scale(0.95); }
+        .outer-letter { font-size: 15px; color: #8b4513; width: 24px; height: 24px; }
+        .inner-letter { font-size: 14px; color: #2c3e50; width: 22px; height: 22px; }
+        .disk-caption { text-align: center; font-size: 12px; color: var(--text-light); margin-top: 4px; letter-spacing: 0.04em; }
+        .disk-caption span { font-weight: 700; color: var(--primary); }
+
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border: none; border-radius: 25px; font-size: 14px; font-weight: 600; cursor: pointer; letter-spacing: 0.03em; transition: all var(--transition); font-family: var(--font-heading); white-space: nowrap; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 14px rgba(139,69,19,0.3); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 20px; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+        .zoom-btn { background: #eee; border: 1px solid #aaa; border-radius: 4px; width: 30px; height: 30px; font-size: 18px; font-weight: bold; cursor: pointer; line-height: 1; }
+        .rotate-btn { background: #f5f0e8; border: 1px solid #aaa; border-radius: 4px; width: 30px; height: 30px; font-size: 18px; font-weight: bold; cursor: pointer; line-height: 1; }
+
+        .coord-scroll-container {
+            width: 100%;
+            max-width: 420px;
+            height: 380px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 0 auto;
+        }
+        canvas { display: block; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #3e2c1c; color: #fff; padding: 10px 24px; border-radius: 25px; font-size: 13px; font-weight: 600; z-index: 999; opacity: 0; transition: all 0.35s ease; pointer-events: none; box-shadow: 0 6px 24px rgba(62,44,28,0.3); }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <div class="header-icon">🏛️</div>
+        <h1>凯撒密码</h1>
+        <p class="subtitle">可视化密码盘 & 坐标映射</p>
+    </header>
+
+    <nav class="nav-tabs" id="navTabs">
+        <button class="nav-btn active" data-page="diskEncrypt"><span class="nav-icon">🔒</span>密码盘加密</button>
+        <button class="nav-btn" data-page="diskDecrypt"><span class="nav-icon">🔓</span>密码盘解密</button>
+        <button class="nav-btn" data-page="coordEncrypt"><span class="nav-icon">📈</span>坐标加密</button>
+    </nav>
+
+    <!-- 密码盘加密页面 -->
+    <div class="page active" id="page-diskEncrypt">
+        <div class="card disk-encrypt-border">
+            <div class="card-header"><div class="card-icon">🔒</div><span class="card-title">密码盘加密</span></div>
+            <div class="disk-area">
+                <div class="cipher-disk-wrapper">
+                    <div class="cipher-disk" id="diskEncrypt"><div class="disk-indicator">▼</div></div>
+                    <div class="disk-controls">
+                        <button class="rotate-btn" id="encRotateLeft" title="逆时针旋转（密钥+1）">↺</button>
+                        <button class="rotate-btn" id="encRotateRight" title="顺时针旋转（密钥-1）">↻</button>
+                    </div>
+                </div>
+                <div class="record-panel" style="display: flex; flex-direction: column;">
+                    <div class="record-header"><span class="record-title">转换记录</span><div class="record-actions"><button id="clearDiskEncryptRecord">清空</button></div></div>
+                    <div class="record-content" id="diskEncryptRecord"></div>
+                </div>
+            </div>
+            <div class="disk-caption">点击<span>外圈字母</span>加密（小写密文）  |  旋转按钮或调整密钥k</div>
+            <div class="form-group"><label class="form-label"><span class="label-icon">🔢</span>密钥 k</label>
+                <div class="shift-group">
+                    <div class="shift-input-wrapper"><button class="shift-btn" id="diskEncShiftDec">−</button><input type="number" class="shift-number" id="diskEncShiftNum" value="3" min="0" max="25"><button class="shift-btn" id="diskEncShiftInc">+</button></div>
+                    <input type="range" class="shift-slider" id="diskEncShiftSlider" value="3" min="0" max="25" step="1">
+                    <span class="shift-display" id="diskEncShiftDisplay">k=3</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label"><span class="label-icon">🔐</span>密文输出</label>
+                <textarea id="diskCipherOutput" placeholder="点击密码盘外圈字母输入..."></textarea>
+                <div style="display: flex; gap: 8px; margin-top: 6px;">
+                    <button class="btn btn-sm btn-outline" id="clearDiskCipherOutput">清空输出</button>
+                    <button class="btn btn-sm btn-outline" id="diskCipherSpace">␣ 空格</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 密码盘解密页面 -->
+    <div class="page" id="page-diskDecrypt">
+        <div class="card disk-decrypt-border">
+            <div class="card-header"><div class="card-icon">🔓</div><span class="card-title">密码盘解密</span></div>
+            <div class="disk-area">
+                <div class="cipher-disk-wrapper">
+                    <div class="cipher-disk" id="diskDecrypt"><div class="disk-indicator">▼</div></div>
+                    <div class="disk-controls">
+                        <button class="rotate-btn" id="decRotateLeft" title="逆时针旋转（密钥+1）">↺</button>
+                        <button class="rotate-btn" id="decRotateRight" title="顺时针旋转（密钥-1）">↻</button>
+                    </div>
+                </div>
+                <div class="record-panel">
+                    <div class="record-header"><span class="record-title">转换记录</span><div class="record-actions"><button id="clearDiskDecryptRecord">清空</button></div></div>
+                    <div class="record-content" id="diskDecryptRecord"></div>
+                </div>
+            </div>
+            <div class="disk-caption">点击<span>内圈字母</span>解密（小写明文）  |  旋转按钮或调整密钥k</div>
+            <div class="form-group"><label class="form-label"><span class="label-icon">🔢</span>密钥 k</label>
+                <div class="shift-group">
+                    <div class="shift-input-wrapper"><button class="shift-btn" id="diskDecShiftDec">−</button><input type="number" class="shift-number" id="diskDecShiftNum" value="3" min="0" max="25"><button class="shift-btn" id="diskDecShiftInc">+</button></div>
+                    <input type="range" class="shift-slider" id="diskDecShiftSlider" value="3" min="0" max="25" step="1">
+                    <span class="shift-display" id="diskDecShiftDisplay">k=3</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label"><span class="label-icon">📝</span>明文输出</label>
+                <textarea id="diskPlainOutput" placeholder="点击密码盘内圈字母输入..."></textarea>
+                <div style="display: flex; gap: 8px; margin-top: 6px;">
+                    <button class="btn btn-sm btn-outline" id="clearDiskPlainOutput">清空输出</button>
+                    <button class="btn btn-sm btn-outline" id="diskPlainSpace">␣ 空格</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 坐标加密页面 -->
+    <div class="page" id="page-coordEncrypt">
+        <div class="card coord-border">
+            <div class="card-header"><div class="card-icon">📈</div><span class="card-title">坐标加密 (y = x + k)</span></div>
+            <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start;">
+                <div class="coord-scroll-container" id="coordEncScroll">
+                    <canvas id="coordEncryptCanvas"></canvas>
+                </div>
+                <div style="flex:1; min-width:180px;">
+                    <div class="form-group"><label class="form-label"><span class="label-icon">🔢</span>密钥 k</label>
+                        <div class="shift-group"><input type="range" class="shift-slider" id="coordEncShiftSlider" value="3" min="0" max="25" step="1"><span class="shift-display" id="coordEncShiftDisplay">k=3</span></div>
+                    </div>
+                    <div class="form-group" style="display:flex; align-items:center; gap:6px;">
+                        <label class="form-label" style="margin-bottom:0;">缩放：</label>
+                        <button class="zoom-btn" id="coordEncZoomOut">−</button>
+                        <span id="coordEncScaleLabel" style="min-width:40px; text-align:center;">100%</span>
+                        <button class="zoom-btn" id="coordEncZoomIn">+</button>
+                    </div>
+                    <div class="record-panel" style="max-height: 200px;">
+                        <div class="record-header"><span class="record-title">点坐标记录</span><div class="record-actions"><button id="clearCoordPoints">清空</button></div></div>
+                        <div class="record-content" id="coordPointsRecord"></div>
+                    </div>
+                    <p style="font-size:12px; color:var(--text-light); margin-top:8px;">直线 y = x + <span id="coordEncBValue">3</span> ，点击红点记录坐标</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    (function() {
+        const pages = {
+            diskEncrypt: document.getElementById('page-diskEncrypt'),
+            diskDecrypt: document.getElementById('page-diskDecrypt'),
+            coordEncrypt: document.getElementById('page-coordEncrypt')
+        };
+        const navBtns = document.querySelectorAll('.nav-btn');
+        function switchPage(name) {
+            Object.values(pages).forEach(p => p.classList.remove('active'));
+            if (pages[name]) pages[name].classList.add('active');
+            navBtns.forEach(b => b.classList.toggle('active', b.dataset.page === name));
+            if (name === 'coordEncrypt') updateCoordEnc();
+        }
+        navBtns.forEach(b => b.addEventListener('click', () => switchPage(b.dataset.page)));
+
+        const toast = document.getElementById('toast');
+        let toastTimer;
+        function showToast(msg) {
+            if (toastTimer) clearTimeout(toastTimer);
+            toast.textContent = msg; toast.classList.add('show');
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // 凯撒算法
+        function caesarEncrypt(text, shift) {
+            shift = ((shift % 26) + 26) % 26;
+            let res = '';
+            for (const ch of text) {
+                if (ch >= 'A' && ch <= 'Z') res += String.fromCharCode(((ch.charCodeAt(0)-65+shift)%26)+65);
+                else if (ch >= 'a' && ch <= 'z') res += String.fromCharCode(((ch.charCodeAt(0)-97+shift)%26)+97);
+                else res += ch;
+            }
+            return res;
+        }
+        function caesarDecrypt(text, shift) {
+            return caesarEncrypt(text, -shift);
+        }
+
+        // 通用记录面板操作
+        function addRecord(panel, text) {
+            const line = document.createElement('div');
+            line.className = 'record-line';
+            line.innerHTML = `<span>${text}</span><button class="record-del">×</button>`;
+            line.querySelector('.record-del').addEventListener('click', () => line.remove());
+            panel.appendChild(line);
+            panel.scrollTop = panel.scrollHeight;
+        }
+        function clearPanel(panelId) {
+            document.getElementById(panelId).innerHTML = '';
+        }
+
+        // 密码盘尺寸
+        function getDiskDimensions() {
+            return window.innerWidth <= 600 ? { disk:200, inner:140, outerRadius:82, innerRadius:55 } : { disk:280, inner:200, outerRadius:118, innerRadius:80 };
+        }
+
+        // 构建密码盘
+        function buildCipherDisk(containerId, initialKey, diskType) {
+            const container = document.getElementById(containerId);
+            if (!container) return { update: () => {} };
+            container.querySelectorAll('.outer-ring, .inner-ring').forEach(el => el.remove());
+            const dim = getDiskDimensions();
+            container.style.width = dim.disk + 'px';
+            container.style.height = dim.disk + 'px';
+            const center = dim.disk / 2, angleStep = 360 / 26, halfStep = angleStep / 2;
+            const outerRing = document.createElement('div'); outerRing.className = 'outer-ring';
+            for (let i = 0; i < 26; i++) {
+                const letter = String.fromCharCode(65 + i);
+                const angle = i * angleStep + halfStep;
+                const rad = angle * Math.PI / 180;
+                const x = center + dim.outerRadius * Math.sin(rad);
+                const y = center - dim.outerRadius * Math.cos(rad);
+                const span = document.createElement('span');
+                span.className = 'letter outer-letter';
+                span.textContent = letter;
+                span.style.left = x + 'px';
+                span.style.top = y + 'px';
+                span.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+                if (diskType === 'encrypt') {
+                    span.addEventListener('click', () => {
+                        const key = parseInt(document.getElementById('diskEncShiftNum').value) || 0;
+                        const cipherChar = caesarEncrypt(letter, key).toLowerCase();
+                        document.getElementById('diskCipherOutput').value += cipherChar;
+                        addRecord(document.getElementById('diskEncryptRecord'), `${letter} → ${cipherChar}`);
+                    });
+                }
+                outerRing.appendChild(span);
+            }
+            const innerRing = document.createElement('div'); innerRing.className = 'inner-ring';
+            innerRing.style.width = dim.inner + 'px';
+            innerRing.style.height = dim.inner + 'px';
+            innerRing.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+            const innerCenter = dim.inner / 2;
+            for (let i = 0; i < 26; i++) {
+                const letter = String.fromCharCode(65 + i);
+                const angle = i * angleStep + halfStep;
+                const rad = angle * Math.PI / 180;
+                const x = innerCenter + dim.innerRadius * Math.sin(rad);
+                const y = innerCenter - dim.innerRadius * Math.cos(rad);
+                const span = document.createElement('span');
+                span.className = 'letter inner-letter';
+                span.textContent = letter;
+                span.style.left = x + 'px';
+                span.style.top = y + 'px';
+                span.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+                if (diskType === 'decrypt') {
+                    span.addEventListener('click', () => {
+                        const key = parseInt(document.getElementById('diskDecShiftNum').value) || 0;
+                        const plainChar = caesarDecrypt(letter, key).toLowerCase();
+                        document.getElementById('diskPlainOutput').value += plainChar;
+                        addRecord(document.getElementById('diskDecryptRecord'), `${letter} → ${plainChar}`);
+                    });
+                }
+                innerRing.appendChild(span);
+            }
+            container.appendChild(outerRing);
+            container.appendChild(innerRing);
+            const rotateInner = (offset) => {
+                innerRing.style.transform = `translate(-50%, -50%) rotate(${-offset * angleStep}deg)`;
+            };
+            rotateInner(initialKey);
+            return { update: rotateInner };
+        }
+
+        const diskEncrypt = buildCipherDisk('diskEncrypt', 3, 'encrypt');
+        const diskDecrypt = buildCipherDisk('diskDecrypt', 3, 'decrypt');
+
+        // 密钥同步
+        function syncKey(numId, sliderId, displayId, updateFn) {
+            const numEl = document.getElementById(numId);
+            const sliderEl = document.getElementById(sliderId);
+            const displayEl = document.getElementById(displayId);
+            function setKey(val) {
+                val = Math.max(0, Math.min(25, parseInt(val) || 0));
+                numEl.value = val;
+                sliderEl.value = val;
+                displayEl.textContent = 'k=' + val;
+                if (updateFn) updateFn(val);
+            }
+            numEl.addEventListener('input', () => setKey(numEl.value));
+            sliderEl.addEventListener('input', () => setKey(sliderEl.value));
+            return setKey;
+        }
+
+        // 加密密钥与旋转按钮
+        const setDiskEncKey = syncKey('diskEncShiftNum', 'diskEncShiftSlider', 'diskEncShiftDisplay', diskEncrypt.update);
+        document.getElementById('diskEncShiftDec').addEventListener('click', () => setDiskEncKey(parseInt(document.getElementById('diskEncShiftNum').value) - 1));
+        document.getElementById('diskEncShiftInc').addEventListener('click', () => setDiskEncKey(parseInt(document.getElementById('diskEncShiftNum').value) + 1));
+        document.getElementById('encRotateRight').addEventListener('click', () => setDiskEncKey(parseInt(document.getElementById('diskEncShiftNum').value) - 1));
+        document.getElementById('encRotateLeft').addEventListener('click', () => setDiskEncKey(parseInt(document.getElementById('diskEncShiftNum').value) + 1));
+        document.getElementById('clearDiskCipherOutput').addEventListener('click', () => document.getElementById('diskCipherOutput').value = '');
+        document.getElementById('diskCipherSpace').addEventListener('click', () => document.getElementById('diskCipherOutput').value += ' ');
+        document.getElementById('clearDiskEncryptRecord').addEventListener('click', () => clearPanel('diskEncryptRecord'));
+
+        // 解密密钥与旋转按钮
+        const setDiskDecKey = syncKey('diskDecShiftNum', 'diskDecShiftSlider', 'diskDecShiftDisplay', diskDecrypt.update);
+        document.getElementById('diskDecShiftDec').addEventListener('click', () => setDiskDecKey(parseInt(document.getElementById('diskDecShiftNum').value) - 1));
+        document.getElementById('diskDecShiftInc').addEventListener('click', () => setDiskDecKey(parseInt(document.getElementById('diskDecShiftNum').value) + 1));
+        document.getElementById('decRotateRight').addEventListener('click', () => setDiskDecKey(parseInt(document.getElementById('diskDecShiftNum').value) - 1));
+        document.getElementById('decRotateLeft').addEventListener('click', () => setDiskDecKey(parseInt(document.getElementById('diskDecShiftNum').value) + 1));
+        document.getElementById('clearDiskPlainOutput').addEventListener('click', () => document.getElementById('diskPlainOutput').value = '');
+        document.getElementById('diskPlainSpace').addEventListener('click', () => document.getElementById('diskPlainOutput').value += ' ');
+        document.getElementById('clearDiskDecryptRecord').addEventListener('click', () => clearPanel('diskDecryptRecord'));
+
+        // ========== 坐标模块（红点对齐格线，横坐标右移半格） ==========
+        let coordEncScale = 1.0;
+        const coordPointsRecord = document.getElementById('coordPointsRecord');
+
+        function drawCoordCanvas(canvasId, k, scale) {
+            const container = document.getElementById('coordEncScroll');
+            const oldCanvas = document.getElementById(canvasId);
+            if (oldCanvas) oldCanvas.remove();
+            const canvas = document.createElement('canvas');
+            canvas.id = canvasId;
+            container.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            const baseCellSize = 28;
+            const cellSize = baseCellSize * scale;
+            const cols = 26;
+            const rows = 52;
+            const marginLeft = 55;
+            const marginBottom = 35;
+            const marginTop = 10;
+            const marginRight = 25;
+            canvas.width = marginLeft + cols * cellSize + marginRight;
+            canvas.height = marginTop + rows * cellSize + marginBottom;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 网格
+            ctx.strokeStyle = '#ddd'; ctx.lineWidth = 0.5;
+            for (let i = 0; i <= cols; i++) {
+                const x = marginLeft + i * cellSize;
+                ctx.beginPath(); ctx.moveTo(x, marginTop); ctx.lineTo(x, marginTop + rows * cellSize); ctx.stroke();
+            }
+            for (let j = 0; j <= rows; j++) {
+                const y = marginTop + j * cellSize;
+                ctx.beginPath(); ctx.moveTo(marginLeft, y); ctx.lineTo(marginLeft + cols * cellSize, y); ctx.stroke();
+            }
+
+            // 横坐标标签：放在竖线上（对应x=1..26），即 i 从 1 到 26 的位置
+            ctx.fillStyle = '#333'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            for (let x = 1; x <= cols; x++) {
+                const canvasX = marginLeft + x * cellSize;
+                const canvasY = marginTop + rows * cellSize + 4;
+                ctx.fillText(String.fromCharCode(64 + x), canvasX, canvasY);
+            }
+
+            // 纵坐标标签（对齐横线，数值从1到52对应rows-j）
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#333'; ctx.font = '10px monospace';
+            for (let j = 0; j <= rows; j++) {
+                const y = marginTop + j * cellSize;
+                const value = rows - j;
+                if (value >= 1 && value <= 52) {
+                    const letterIndex = (value - 1) % 26;
+                    ctx.fillText(String.fromCharCode(65 + letterIndex), marginLeft - 6, y);
+                }
+            }
+
+            // 直线 y = x + k，通过格点（整数坐标交叉点）
+            const linePoints = [];
+            ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            let firstPoint = true;
+            for (let x = 1; x <= cols; x++) {
+                const y = x + k;
+                if (y >= 1 && y <= rows) {
+                    const canvasX = marginLeft + x * cellSize;          // 竖线位置
+                    const canvasY = marginTop + (rows - y) * cellSize;  // 横线位置
+                    linePoints.push({ x, y, canvasX, canvasY });
+                    if (firstPoint) { ctx.moveTo(canvasX, canvasY); firstPoint = false; }
+                    else ctx.lineTo(canvasX, canvasY);
+                }
+            }
+            ctx.stroke();
+
+            // 红点与坐标标签（红点位于格点，标签稍微偏移避免遮挡）
+            canvas.pointsData = linePoints;
+            for (const p of linePoints) {
+                ctx.beginPath();
+                ctx.arc(p.canvasX, p.canvasY, 4 * scale, 0, Math.PI * 2);
+                ctx.fillStyle = '#c0392b'; ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+                const xLetter = String.fromCharCode(64 + p.x);
+                const yLetter = String.fromCharCode(64 + ((p.y - 1) % 26 + 1));
+                ctx.fillStyle = '#000'; ctx.font = `${9 * scale}px monospace`; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+                ctx.fillText(`${xLetter},${yLetter}`, p.canvasX + 6, p.canvasY - 6);
+            }
+
+            // 点击事件记录坐标
+            canvas.addEventListener('click', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const mouseX = (e.clientX - rect.left) * scaleX;
+                const mouseY = (e.clientY - rect.top) * scaleY;
+                for (const p of canvas.pointsData) {
+                    const dx = mouseX - p.canvasX, dy = mouseY - p.canvasY;
+                    if (Math.sqrt(dx*dx + dy*dy) < 8 * scale) {
+                        const xLetter = String.fromCharCode(64 + p.x);
+                        const yLetter = String.fromCharCode(64 + ((p.y - 1) % 26 + 1));
+                        const recordText = `(${xLetter},${yLetter})  k=${k}`;
+                        addRecord(coordPointsRecord, recordText);
+                        showToast(`坐标：(${xLetter},${yLetter})`);
+                        break;
+                    }
+                }
+            });
+            canvas.addEventListener('mousemove', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const mouseX = (e.clientX - rect.left) * scaleX;
+                const mouseY = (e.clientY - rect.top) * scaleY;
+                let found = false;
+                for (const p of canvas.pointsData) {
+                    const dx = mouseX - p.canvasX, dy = mouseY - p.canvasY;
+                    if (Math.sqrt(dx*dx + dy*dy) < 7 * scale) { found = true; break; }
+                }
+                canvas.style.cursor = found ? 'pointer' : 'default';
+            });
+        }
+
+        function updateCoordEnc() {
+            const k = parseInt(document.getElementById('coordEncShiftSlider').value);
+            document.getElementById('coordEncShiftDisplay').textContent = 'k=' + k;
+            document.getElementById('coordEncBValue').textContent = k;
+            drawCoordCanvas('coordEncryptCanvas', k, coordEncScale);
+            document.getElementById('coordEncScaleLabel').textContent = Math.round(coordEncScale * 100) + '%';
+        }
+        document.getElementById('coordEncShiftSlider').addEventListener('input', updateCoordEnc);
+        document.getElementById('coordEncZoomIn').addEventListener('click', () => {
+            if (coordEncScale < 2.0) { coordEncScale = Math.min(2.0, coordEncScale + 0.2); updateCoordEnc(); }
+        });
+        document.getElementById('coordEncZoomOut').addEventListener('click', () => {
+            if (coordEncScale > 0.5) { coordEncScale = Math.max(0.5, coordEncScale - 0.2); updateCoordEnc(); }
+        });
+        document.getElementById('clearCoordPoints').addEventListener('click', () => clearPanel('coordPointsRecord'));
+
+        // 初始化
+        setDiskEncKey(3);
+        setDiskDecKey(3);
+        updateCoordEnc();
+    })();
+</script>
+</body>
+</html>
